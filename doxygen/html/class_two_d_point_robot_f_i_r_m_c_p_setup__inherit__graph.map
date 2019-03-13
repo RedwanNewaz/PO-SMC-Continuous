@@ -1,0 +1,3 @@
+<map id="TwoDPointRobotFIRMCPSetup" name="TwoDPointRobotFIRMCPSetup">
+<area shape="rect" id="node2" href="$class_two_d_point_robot_setup.html" title="Wrapper for ompl::app::RigidBodyPlanning that plans for rigid bodies in SE2BeliefSpace for a point ro..." alt="" coords="31,80,187,107"/>
+</map>

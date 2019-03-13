@@ -1,0 +1,6 @@
+<map id="Graphical Class Hierarchy" name="Graphical Class Hierarchy">
+<area shape="rect" id="node1" href="$class_motion_model_method.html" title="Abstract class interface for defining a motion model. " alt="" coords="5,56,144,83"/>
+<area shape="rect" id="node2" href="$class_omnidirectional_motion_model.html" title="OmnidirectionalMotionModel" alt="" coords="192,5,379,32"/>
+<area shape="rect" id="node3" href="$class_two_d_point_motion_model.html" title="TwoDPointMotionModel" alt="" coords="205,56,366,83"/>
+<area shape="rect" id="node4" href="$class_unicycle_motion_model.html" title="UnicycleMotionModel" alt="" coords="212,107,359,133"/>
+</map>

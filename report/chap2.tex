@@ -1,0 +1,230 @@
+\chapter{Issues \& Notes}
+
+\section{Notes}
+
+OMPL’s API is very different programmatically and philosophically from PMPL. Due to its lightweight nature, OMPL does not depend 
+external libraries (except BOOST) which gives it a disadvantage in terms of extra functionality (such as reading setup parameters from XML files etc.).
+
+\subsection{How the OMPL PRM planner works}
+\begin{enumerate}
+ \item Call \textit{setProblemDefinition} to define the parameters of the problem.
+ \item Call \textit{setup} to setup the planners specific internals like validity checker etc.
+ \item  Call \textit{solve} to find construct graph and find a solutions:
+  \begin{enumerate}
+    \item Call \textit{checkValidity} : makes sure start and goal states have been set
+    \item set termination conditions
+    \item Call \textit{constructRoadMap}: 
+	    \begin{itemize}
+	     \item Allocates a simple state sampler
+	     \item Calls \textit{growRoadmap} and \textit{expandRoadmap} in a 2:1 ratio
+	    \end{itemize}
+  \end{enumerate}
+
+ \item \textit{addMilestone} : 
+  \begin{enumerate}
+   \item  Adds a state to the graph and creates a vertex with the properties and everything else. 
+   \item After creating the vertex, it attempts to connect the vertex to its nearest neighbours
+   \item during the connection, it finds the motion cost associated with the connection. \color{red}{This is the point where we run the monte carlo simulation to generate edge costs}
+  \end{enumerate}
+
+ \item \textit{growRoadmap}: Takes as input a termination condition and a state, samples a valid state and puts it in input state and adds it to the graph.
+\end{enumerate}
+
+\subsection{Sampling a valid belief}
+
+\begin{enumerate}
+ \item While sampling we need to check if a state is in collision and observable. 
+ \item The collision check is done by validitychecker. 
+ \item The observability check can be done by filter or observation model (currently chosen).
+ \item If sampled state passes all checks, we need to construct its stationary belief.
+\end{enumerate}
+
+
+\subsection{State Validity Checking}
+Can code be simply re-used, is there any need to write a new validitychecker? 
+
+\begin{itemize}
+ \item We need to check for collision. Can use the provided FCL wrapper in OMPL.
+ \item The observability check can also done through validitychecker because the information about space should be accessed through the space information.
+
+\end{itemize}
+
+\subsection{SpaceInformation Class}
+
+We use the \textbf{ompl::control::SpaceInformation} class. This combines the statespace and controlspace information. This requires us to set:
+\begin{enumerate}
+ \item ValidityChecker: Checks if a state is collision free.
+ \item MotionChecker: Checks if we can have a valid motion (collision free and satisfying dynamic constraints) between two states.
+ \item Sampler: Samples a valid state which can be added to the graph as a node.
+ \item StatePropagator: Given a control and its duration, it propagates the system.
+\end{enumerate}
+
+\subsection{The OMPL MotionValidator class}
+
+\begin{enumerate}
+ \item Checks if the intermediate states between start and end states are valid. Is basically the localplanner.
+ \item Should we add the monte carlo simulation to this class or keep our own MotionModelLP to do that.
+\end{enumerate}
+
+\subsection{Using the Control Space}
+
+\begin{itemize}
+ \item OMPL defines a control space and we must use RealVectorControl instead of armadillo (old pmpl implementation). So need to change how we use \textcolor{red}{ControlType}. Instead of colvec it should use the OMPL stuff. 
+ 
+ \item An instance of a \textbf{StatePropagator} class is to be defined in controlspace. Its job is to propagate the state of a robot based on control input. We need to  derive      our motion model from this class. 
+ 
+  \item We can use the \textbf{SpaceInformation} class belonging to control space for our planner. \textcolor{red}{Should we derive a space from control:spaceinformation and then provide it access to the motion model and observation model? Since the spaceinformationptr gets passed around to all important classes, this will ease implementation.} 
+
+ \end{itemize}
+
+ \subsubsection{How to define an Edge}
+ In PMPL, we used a Controller class to describe our edges [used it for node controllers also]. These controllers (edges) were stored in a vector and 
+ their indexes were stored for each edge. OMPL gives us a \textbf{PathControl} class, which defines a path in control space. It can be used to derive a new
+ FIRMEdge class.
+
+\subsection{Modifications required to OMPL PRM}
+
+\begin{enumerate}
+
+ \item Check if a state is observable before adding it to the graph. The \textbf{UniformValidBeliefSampler} and   \textbf{GaussianValidBeliefSampler} will check the observability for a sample, whether to actually put the observability check in filter or observation model needs to be decided
+   
+ \item In the function \textit{addMilestone}:
+  \begin{enumerate}
+   \item Need to calculate the cost-to-go between vertices. This is the edge cost + stabilization cost. Should we define it as an optimization objective ?
+  \end{enumerate}
+
+  \item Should the motionmodel and observationmodel be provided to the planner or to problemdefinition (like pmpl) or to a new spaceinformation ?
+\end{enumerate}
+
+We can create the controller class inside the planner. Would make sense.
+
+\subsubsection{Calculating Cost-To-Go}
+
+We can define a new \textbf{InformationOptimizationObjective} whose job is to calculate the cost-to-go. This way we can minimize the changes required to the PRM
+class.
+
+\subsection{Find the solution path}
+
+\subsubsection{What was happening in ompl::PRM}
+Function \textit{constructSolution} calls the Boost A* search to find the list of nodes. Then it calls \textit{constructGeometricPath} to add the list of nodes
+to a geometric path.
+
+
+\subsubsection{What we need to do in FIRM}
+
+\begin{itemize}
+ \item Create a new \textbf{FeedbackPath} class
+ \item Add a DP solver to FIRM, which tells you the feedback path
+ \item Will need to add 
+\end{itemize}
+
+\section{Rendering the geometry}
+
+ompl gives us a class \textbf{RenderGeometry} which should be able to render the 3D model. There could be a problem for firm because we have the
+real robot and the beliefs. So the geometry will be rendered only on the real robot. But the belief rendering will have to be done manually.
+For belief rendering we should be able to re-use the code that is already there.
+
+\section{Issues}
+Log of issues faced and discussions on their solutions.
+
+\begin{enumerate}
+ \item Should the optimization functionality in OMPL Planner class be used or should the planner be implemented straight forward, similar to PMPL approach ?
+    \begin{itemize}
+     \item 
+    \end{itemize}
+\item How to add the properties of an edge to the graph i.e. EdgeController; a) Create a hashtable which maps from edge to controller id, b) store the edge controller as the property of an edge i.e. create a custom edge property. Easier approach would be to (a).
+
+ \item What is the job of the validitychecker ? -> to check if a state is in collision or not. 
+
+\end{enumerate}
+
+\section{Finding the target nodes for the MMPG}
+
+\textbf{MMPolicyGenerator} should contain a boost graph, whose nodes are the nodes of the FIRM graph (no need to store the
+actual properties of the firm graph, just nodes x,y,theta and id.) Then when we add
+the vertex to the graph, we check with every other node in the graph how many overlapping
+landmarks do they see. The weight of the edge is the number of overlapping landmarks.
+Therefore higher weight means that they see more of the same thing.
+
+Then to find the target for a belief, we search for the nodes in its neighborhood(within some radius r,or some fixed
+n number of closes nodes) and repeat this process to find the neighboring nodes $NN= {N_1.N_2...}$ for each belief.
+Then for each neighborhood, find the node in the neighborhood that has the least edgeweight to the other neighborhoods.
+
+
+The functions required would be:
+
+\begin{enumerate}
+ \item Add a node to the graph, create edges. Everytime you add a node, you need to see what landmarks it sees, then compare it to the landmarks
+      that other nodes see. So the vertex property should hold the state and list of ids of landmarks it sees.
+ \item Given N neighborhoods, find that node in each neighborhood which has minimum overlap with other neighborhoods. One simple idea would be 
+       to sum up the weights of the edges of each node with nodes in all the other nodes in the neighborhoods belonging to set N. Then
+       see which node has the lowest sum, that is the least similar in appearance to the nodes in the other neighborhoods.
+\end{enumerate}
+
+\section{How to save/load the graph from an XML}
+
+\subsection{How to save}
+
+\subsection{How to load}
+
+\begin{enumerate}
+ \item We pass the name of the file to load to the planner
+ \item A special function in the planner calls the FIRMUtility function to read that file and store the information.
+ \item FIRMUtility returns a vector of the ompl::base::States* and a vector of FIRMWeights and some mapping of the start and goal vertex for that edge weight
+ \item First the states are all added in a for loop. (But this could screw up some other stuff)
+ \item Or we individually add the state one by one and just like the standard implementation, find its neighbors and when the time comes to add the edge weight, we load it up from the 
+       XML.We match the start id and end id, then return the corresponding weight. It could be a standard map from pair<Vertex,Vertex> to a FIRMWeight object.
+\end{enumerate}
+
+To the write function we pass two arguments:
+
+1. First argument is a vector of pairs of the node id and the node state. The node state itself is a pair representing the colvec of x,y,z and the covariance matrix.
+
+
+\section{Testing different Scenarios}
+
+\subsection{Current Issues}
+
+\begin{enumerate}
+ \item In some locations, after sampling, the belief doesn't show up in locations where the robot could be. Possible reasons could be:
+      \begin{enumerate}
+       \item The sampling is not dense enough
+       \item The information geometry is not correct, i.e. it isnt exactly the same in each supposedly same location.
+      \end{enumerate}
+
+
+\end{enumerate}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

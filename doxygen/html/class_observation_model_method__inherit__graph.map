@@ -1,0 +1,5 @@
+<map id="ObservationModelMethod" name="ObservationModelMethod">
+<area shape="rect" id="node2" href="$class_cam_aruco2_d_observation_model.html" title="A monocular vision based sensor model where the observations are beacons with unique ids..." alt="" coords="224,5,431,32"/>
+<area shape="rect" id="node3" href="$class_heading_beacon_observation_model.html" title="observations are signal strength of beacons with unique ids. " alt="" coords="235,57,419,98"/>
+<area shape="rect" id="node4" href="$class_two_d_beacon_observation_model.html" title="observations are signal strength of beacons with unique ids. " alt="" coords="224,123,431,149"/>
+</map>

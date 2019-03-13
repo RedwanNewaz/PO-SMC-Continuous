@@ -1,0 +1,11 @@
+Time: 6 ms
+Time: 6 ms
+Time: 6 ms
+Time: 6 ms
+Time: 5 ms
+Time: 8 ms
+Time: 5 ms
+Time: 5 ms
+Time: 6 ms
+Time: 5 ms
+Time: 6 ms
