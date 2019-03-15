@@ -9,7 +9,9 @@
 #include "Planner/FIRM.h"
 #include "Visualization/Visualizer.h"
 #include "Utils/FIRMUtils.h"
-
+#include <functional>
+#include <memory>
+#define foreach BOOST_FOREACH
 
 using namespace ModelChecking;
 using namespace std;
@@ -28,14 +30,27 @@ private:
     SMCptr model_checker_;
     unsigned int minNodes_;
     unsigned int maxNodes_;
+    double nEpsilonForQVnodeMerging_;
+
+
+    ompl::base::State *cstartState;
+    ompl::base::State *cendState;
+    ompl::base::State *goalState;
+    ompl::base::State *tempTrueStateCopy;
     ompl::base::State *kidnappedState_;
 protected:
-    void SEARCH();
+    Vertex SEARCH(Vertex &currentVertex,  const Vertex &targetNode);
     void SIMULATE();
     void ROLLOUT();
     void BACKUP();
+    bool EXECUTE(const Edge &e, const Vertex targetNode,  int kStepOfEdgeController);
 
     void loadRoadMapFromFile(const std::string &pathToFile);
+    bool updateQVnodeBeliefOnTree(const ompl::base::State* givenBelief, const ompl::base::State* evolvedBelief,const Vertex selectedChildQnode, Vertex& evolvedVertex, const bool reset);
+    void pruneTreeFrom(const Vertex rootVertex);
+    void pruneNode(const Vertex rootVertex);
+
+    FIRM::EdgeControllerType& getEdgeControllerOnTree(const Edge& edge);
 
 };
 

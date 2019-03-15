@@ -42,10 +42,10 @@
 		/>
 </MotionModels>
 <FIRM>
-	<Video save = "0" />
+	<Video save = "1" />
 	<!--DataLog save = "0"/-->
-	<!--DataLog save = "1" folder = "./DataLog/" /-->
-	<DataLog save = "0" folder = "./" />
+	<DataLog save = "1" folder = "./DataLog/" />
+	<!--<DataLog save = "0" folder = "./" />-->
 	<Roadmap save = "0" />
 	<MCParticles numparticles = "5" />	<!-- NOTE this is not used for FIRMCP online Monte Carlo simulation -->
 	<!--MCParticles numparticles = "10" /-->

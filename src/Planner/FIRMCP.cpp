@@ -38,7 +38,8 @@
 #include "Visualization/Visualizer.h"
 #include <boost/circular_buffer.hpp>
 #include <tinyxml.h>
-
+#include <functional>
+using namespace std::placeholders;
 #define foreach BOOST_FOREACH
 #define foreach_reverse BOOST_REVERSE_FOREACH
 
@@ -404,12 +405,60 @@ void FIRMCP::executeFeedbackWithPOMCP(void)
         //EdgeControllerType& edgeController = edgeControllers_.at(e);
         EdgeControllerType& edgeController = getEdgeControllerOnPOMCPTree(e);
         edgeController.setSpaceInformation(policyExecutionSI_);
+
+    // TODO implement std::bind
+
+        auto edgeMovement = std::bind(&EdgeControllerType::executeFromUpto, &edgeController,kStepOfEdgeController, rolloutSteps_, std::cref(cstartState),
+                std::placeholders::_1,std::placeholders::_2,std::placeholders::_3, false);
+
+        NodeControllerType& nodeController = nodeControllers_.at(targetNode);
+        nodeController.setSpaceInformation(policyExecutionSI_);
+
+        auto nodeMovement = std::bind(&NodeControllerType::StabilizeUpto, &nodeController,rolloutSteps_,std::cref(cstartState),
+                                      std::placeholders::_1,std::placeholders::_2,std::placeholders::_3, false);
+
+        if(!edgeController.isTerminated(cstartState, 0))
+            edgeMovement(std::ref(cendState), std::ref(costCov),std::ref(stepsExecuted));
+        else
+            nodeMovement(std::ref(cendState), std::ref(costCov),std::ref(stepsExecuted));
+
+        // NOTE how to penalize uncertainty (covariance) and path length (time steps) in the cost
+        //*1) cost = wc * sum(trace(cov_k))  + wt * K  (for k=1,...,K)
+        // 2) cost = wc * trace(cov_f)       + wt * K
+        // 3) cost = wc * mean(trace(cov_k)) + wt * K
+        // 4) cost = wc * sum(trace(cov_k))
+        currentTimeStep_ += stepsExecuted;
+
+        executionCostCov_ += costCov.value() - ompl::magic::EDGE_COST_BIAS;    // 1,2,3,4) costCov is actual execution cost but only for covariance penalty (even without weight multiplication)
+
+        executionCost_ = informationCostWeight_*executionCostCov_ + timeCostWeight_*currentTimeStep_;    // 1)
+        //executionCost_ = informationCostWeight_*executionCostCov_/(currentTimeStep_==0 ? 1e-10 : currentTimeStep_) + timeCostWeight_*currentTimeStep_;    // 3)
+        //executionCost_ = informationCostWeight_*executionCostCov_;    // 4)
+
+        costHistory_.push_back(std::make_tuple(currentTimeStep_, executionCostCov_, executionCost_));
+
+
+        // this is a secondary (redundant) collision check for the true state
+        siF_->getTrueState(tempTrueStateCopy);
+        if(!siF_->isValid(tempTrueStateCopy))
+        {
+            OMPL_INFORM("Robot Collided :(");
+            return;
+        }
+
+        // update the cstartState for next iteration
+        siF_->copyState(cstartState, cendState);
+
+
+    // STEP
+    /*
         if(!edgeController.isTerminated(cstartState, 0))  // check if cstartState is near to the target FIRM node (by x,y position); this is the termination condition B) for EdgeController::Execute()
         {
             // NOTE do not execute edge controller to prevent jiggling motion around the target node
 
             // NOTE let the edge controller know which step the current state is at, especially when following the same edge controller of the previous iteration
             edgeControllerStatus = edgeController.executeFromUpto(kStepOfEdgeController, rolloutSteps_, cstartState, cendState, costCov, stepsExecuted, false);
+
 
             // NOTE how to penalize uncertainty (covariance) and path length (time steps) in the cost
             //*1) cost = wc * sum(trace(cov_k))  + wt * K  (for k=1,...,K)
@@ -450,6 +499,8 @@ void FIRMCP::executeFeedbackWithPOMCP(void)
             nodeControllerStatus = nodeController.StabilizeUpto(rolloutSteps_, cstartState, cendState, costCov, stepsExecuted, false);
 
 
+
+
             // NOTE how to penalize uncertainty (covariance) and path length (time steps) in the cost
             //*1) cost = wc * sum(trace(cov_k))  + wt * K  (for k=1,...,K)
             // 2) cost = wc * trace(cov_f)       + wt * K
@@ -480,7 +531,8 @@ void FIRMCP::executeFeedbackWithPOMCP(void)
 
         } // [2] NodeController
 
-
+*/
+// STEP
         // check if cendState after execution has reached targetNode, just for logging
         if(stateProperty_[targetNode]->as<FIRM::StateType>()->isReached(cendState))
         {
